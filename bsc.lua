@@ -7,7 +7,9 @@
 -- create a new protocol object for BACnet Secure Connect
 bsc_protocol = Proto("bsc", "BACnet Secure Connect Protocol")
 
+--
 -- lookup tables
+--
 local bvlc_functions = {
   [0] = "BVLC-Result", [1] = "Encapsulated-NPDU",
   [2] = "Address-Resolution", [3] = "Address-Resolution-ACK",
@@ -39,67 +41,55 @@ local header_option_types = {
 
 local ack_or_nak = {[0] = "ACK", [1] = "NAK"}
 
--- common fields
-fld_func             = ProtoField.uint8("bsc.function", "Function", base.HEX, bvlc_functions)
-fld_cntl             = ProtoField.uint8("bsc.control", "Control", base.HEX)
-fld_cntl_resrvedbits = ProtoField.uint8("bsc.control.reserved", "Reserved Bits", base.DEC, {[0] = "valid"}, 240)
-fld_cntl_hasorigvmac = ProtoField.bool("bsc.control.has_orig_vmac", "Originating Virtual Address", 8, present_or_absent, 8)
-fld_cntl_hasdestvmac = ProtoField.bool("bsc.control.has_dest_vmac", "Destination Virtual Address", 8, present_or_absent, 4)
-fld_cntl_hasdestopts = ProtoField.bool("bsc.control.has_dest_opts", "Destination Options", 8, present_or_absent, 2)
-fld_cntl_hasdataopts = ProtoField.bool("bsc.control.has_data_opts", "Data Options", 8, present_or_absent, 1)
-fld_msgid            = ProtoField.uint16("bsc.msg_id", "Message ID", base.HEX)
-fld_origvmac         = ProtoField.ether("bsc.orig_vmac", "Originating Virtual Address")
-fld_destvmac         = ProtoField.ether("bsc.dest_vmac", "Destination Virtual Address")
-fld_destopts         = ProtoField.none("bsc.destopts", "Destination Options")
-fld_dataopts         = ProtoField.none("bsc.dataopts", "Data Options")
-fld_option_marker    = ProtoField.none("bsc.option.marker", "Header Flags")
-fld_option_hasmore   = ProtoField.bool("bsc.option.has_more", "More Options", 8, yes_or_no, 128)
-fld_option_mustund   = ProtoField.bool("bsc.option.must_understand", "Must Understand", 8, yes_or_no, 64)
-fld_option_hasdata   = ProtoField.bool("bsc.option.has_data", "Header Data", 8, present_or_absent, 32)
-fld_option_type      = ProtoField.uint8("bsc.option.type", "Type", base.HEX, header_option_types, 31)
-fld_option_length    = ProtoField.uint8("bsc.option.length", "Length", base.DEC)
-fld_option_data      = ProtoField.none("bsc.option.data", "Data")
-fld_option_secure    = ProtoField.none("bsc.option.secure", "Secure Path")
-fld_option_prop      = ProtoField.none("bsc.option.prop", "Proprietary Option")
-fld_option_prop_vid  = ProtoField.uint16("bsc.option.prop.vendor_id", "Function", base.DEC)
-fld_option_prop_type = ProtoField.uint8("bsc.option.prop.type", "Type", base.DEC)
-fld_option_prop_data = ProtoField.none("bsc.option.prop.data", "Data")
-fld_payload          = ProtoField.bytes("bsc.payload", "Payload")
+--
+-- field configuration
+--
+local fields = bsc_protocol.fields
+fields.func             = ProtoField.uint8("bsc.function", "Function", base.HEX, bvlc_functions)
+fields.cntl             = ProtoField.uint8("bsc.control", "Control", base.HEX)
+fields.cntl_resrvedbits = ProtoField.uint8("bsc.control.reserved", "Reserved Bits", base.DEC, {[0] = "valid"}, 240)
+fields.cntl_hasorigvmac = ProtoField.bool("bsc.control.has_orig_vmac", "Originating Virtual Address", 8, present_or_absent, 8)
+fields.cntl_hasdestvmac = ProtoField.bool("bsc.control.has_dest_vmac", "Destination Virtual Address", 8, present_or_absent, 4)
+fields.cntl_hasdestopts = ProtoField.bool("bsc.control.has_dest_opts", "Destination Options", 8, present_or_absent, 2)
+fields.cntl_hasdataopts = ProtoField.bool("bsc.control.has_data_opts", "Data Options", 8, present_or_absent, 1)
+fields.msgid            = ProtoField.uint16("bsc.msg_id", "Message ID", base.HEX)
+fields.origvmac         = ProtoField.ether("bsc.orig_vmac", "Originating Virtual Address")
+fields.destvmac         = ProtoField.ether("bsc.dest_vmac", "Destination Virtual Address")
+fields.destopts         = ProtoField.none("bsc.destopts", "Destination Options")
+fields.dataopts         = ProtoField.none("bsc.dataopts", "Data Options")
+fields.option_marker    = ProtoField.none("bsc.option.marker", "Header Flags")
+fields.option_hasmore   = ProtoField.bool("bsc.option.has_more", "More Options", 8, yes_or_no, 128)
+fields.option_mustund   = ProtoField.bool("bsc.option.must_understand", "Must Understand", 8, yes_or_no, 64)
+fields.option_hasdata   = ProtoField.bool("bsc.option.has_data", "Header Data", 8, present_or_absent, 32)
+fields.option_type      = ProtoField.uint8("bsc.option.type", "Type", base.HEX, header_option_types, 31)
+fields.option_length    = ProtoField.uint8("bsc.option.length", "Length", base.DEC)
+fields.option_data      = ProtoField.none("bsc.option.data", "Data")
+fields.option_secure    = ProtoField.none("bsc.option.secure", "Secure Path")
+fields.option_prop      = ProtoField.none("bsc.option.prop", "Proprietary Option")
+fields.option_prop_vid  = ProtoField.uint16("bsc.option.prop.vendor_id", "Function", base.DEC)
+fields.option_prop_type = ProtoField.uint8("bsc.option.prop.type", "Type", base.DEC)
+fields.option_prop_data = ProtoField.none("bsc.option.prop.data", "Data")
+fields.payload          = ProtoField.bytes("bsc.payload", "Payload")
 
 -- BVLC-result fields
-fld_bvlcres_func     = ProtoField.uint8("bsc.bvlc_result.function", "Function", base.HEX, bvlc_functions)
-fld_bvlcres_code     = ProtoField.uint8("bsc.bvlc_result.code", "Result", base.HEX, ack_or_nak)
-fld_bvlcres_errmrk   = ProtoField.uint8("bsc.bvlc_result.error_marker", "Error Marker")
-fld_bvlcres_errcls   = ProtoField.uint16("bsc.bvlc_result.error_class", "Error Class")
-fld_bvlcres_errcde   = ProtoField.uint16("bsc.bvlc_result.error_code", "Error Code")
-fld_bvlcres_errdet   = ProtoField.string("bsc.bvlc_result.error_details", "Error Details", base.UNICODE)
+fields.bvlcres_func     = ProtoField.uint8("bsc.bvlc_result.function", "Function", base.HEX, bvlc_functions)
+fields.bvlcres_code     = ProtoField.uint8("bsc.bvlc_result.code", "Result", base.HEX, ack_or_nak)
+fields.bvlcres_errmrk   = ProtoField.uint8("bsc.bvlc_result.error_marker", "Error Marker")
+fields.bvlcres_errcls   = ProtoField.uint16("bsc.bvlc_result.error_class", "Error Class")
+fields.bvlcres_errcde   = ProtoField.uint16("bsc.bvlc_result.error_code", "Error Code")
+fields.bvlcres_errdet   = ProtoField.string("bsc.bvlc_result.error_details", "Error Details", base.UNICODE)
 
 -- connect request fields
-fld_connreq_vmac     = ProtoField.ether("bsc.conn_req.vmac", "VMAC Address")
-fld_connreq_uuid     = ProtoField.guid("bsc.conn_req.uuid", "UUID")
-fld_connreq_bvlclen  = ProtoField.uint16("bsc.conn_req.bvlc_len", "Maximum BVLC Length Accepted")
-fld_connreq_npdulen  = ProtoField.uint16("bsc.conn_req.npdu_len", "Maximum NPDU Length Accepted")
+fields.connreq_vmac     = ProtoField.ether("bsc.conn_req.vmac", "VMAC Address")
+fields.connreq_uuid     = ProtoField.guid("bsc.conn_req.uuid", "UUID")
+fields.connreq_bvlclen  = ProtoField.uint16("bsc.conn_req.bvlc_len", "Maximum BVLC Length Accepted")
+fields.connreq_npdulen  = ProtoField.uint16("bsc.conn_req.npdu_len", "Maximum NPDU Length Accepted")
 
 -- connect accept fields
-fld_connack_vmac     = ProtoField.ether("bsc.conn_ack.vmac", "VMAC Address")
-fld_connack_uuid     = ProtoField.guid("bsc.conn_ack.uuid", "UUID")
-fld_connack_bvlclen  = ProtoField.uint16("bsc.conn_ack.bvlc_len", "Maximum BVLC Length Accepted")
-fld_connack_npdulen  = ProtoField.uint16("bsc.conn_ack.npdu_len", "Maximum NPDU Length Accepted")
-
--- wire up the fields
-bsc_protocol.fields = {
-  fld_func, fld_cntl, fld_cntl_hasdataopts, fld_cntl_hasdestopts,
-  fld_cntl_hasdestvmac, fld_cntl_hasorigvmac, fld_cntl_resrvedbits,
-  fld_msgid, fld_origvmac, fld_destvmac, fld_destopts, fld_dataopts,
-  fld_option_marker, fld_option_hasmore, fld_option_mustund,
-  fld_option_hasdata, fld_option_type, fld_option_length, fld_option_data,
-  fld_option_secure, fld_option_prop, fld_option_prop_vid,
-  fld_option_prop_type, fld_option_prop_data, fld_payload, fld_bvlcres_func,
-  fld_bvlcres_code, fld_bvlcres_errmrk, fld_bvlcres_errcls, fld_bvlcres_errcde,
-  fld_bvlcres_errdet, fld_connreq_vmac, fld_connreq_uuid, fld_connreq_bvlclen,
-  fld_connreq_npdulen, fld_connack_vmac, fld_connack_uuid, fld_connack_bvlclen,
-  fld_connack_npdulen
-}
+fields.connack_vmac     = ProtoField.ether("bsc.conn_ack.vmac", "VMAC Address")
+fields.connack_uuid     = ProtoField.guid("bsc.conn_ack.uuid", "UUID")
+fields.connack_bvlclen  = ProtoField.uint16("bsc.conn_ack.bvlc_len", "Maximum BVLC Length Accepted")
+fields.connack_npdulen  = ProtoField.uint16("bsc.conn_ack.npdu_len", "Maximum NPDU Length Accepted")
 
 -- resolve the NPDU dissector
 bacnet_protocol = Dissector.get("bacnet")
@@ -109,13 +99,13 @@ bacnet_protocol = Dissector.get("bacnet")
 --
 
 local function dissect_bvlc_result(payload, tree)
-  tree:add(fld_bvlcres_func, payload(0, 1))
-  tree:add(fld_bvlcres_code, payload(1, 1))
+  tree:add(fields.bvlcres_func, payload(0, 1))
+  tree:add(fields.bvlcres_code, payload(1, 1))
   if payload:len() > 2 then
-    tree:add(fld_bvlcres_errmrk, payload(2, 1))
-    tree:add(fld_bvlcres_errcls, payload(3, 2))
-    tree:add(fld_bvlcres_errcde, payload(5, 2))
-    tree:add(fld_bvlcres_errdet, payload(7))
+    tree:add(fields.bvlcres_errmrk, payload(2, 1))
+    tree:add(fields.bvlcres_errcls, payload(3, 2))
+    tree:add(fields.bvlcres_errcde, payload(5, 2))
+    tree:add(fields.bvlcres_errdet, payload(7))
   end
   tree:append_text(" (BVLC-Result)")
   return "BVLC-Result"
@@ -134,19 +124,19 @@ local function dissect_advertisement_solicitation(payload, tree)
 end
 
 local function dissect_connect_request(payload, tree)
-  tree:add(fld_connreq_vmac, payload(0, 6))
-  tree:add(fld_connreq_uuid, payload(6, 16))
-  tree:add(fld_connreq_bvlclen, payload(22, 2))
-  tree:add(fld_connreq_npdulen, payload(24, 2))
+  tree:add(fields.connreq_vmac, payload(0, 6))
+  tree:add(fields.connreq_uuid, payload(6, 16))
+  tree:add(fields.connreq_bvlclen, payload(22, 2))
+  tree:add(fields.connreq_npdulen, payload(24, 2))
   tree:append_text(" (Connect-Request)")
   return "Connect-Request" -- TODO(nb): show vmac and uuid here
 end
 
 local function dissect_connect_accept(payload, tree)
-  tree:add(fld_connack_vmac, payload(0, 6))
-  tree:add(fld_connack_uuid, payload(6, 16))
-  tree:add(fld_connack_bvlclen, payload(22, 2))
-  tree:add(fld_connack_npdulen, payload(24, 2))
+  tree:add(fields.connack_vmac, payload(0, 6))
+  tree:add(fields.connack_uuid, payload(6, 16))
+  tree:add(fields.connack_bvlclen, payload(22, 2))
+  tree:add(fields.connack_npdulen, payload(24, 2))
   tree:append_text(" (Connect-Accept)")
   return "Connect-Accept" -- TODO(nb): show vmac and uuid here
 end
@@ -183,24 +173,24 @@ function bsc_protocol.dissector(buffer, pinfo, tree)
   local root = tree:add(bsc_protocol, buffer(), "Building Automation and Control Network LPDU")
 
   -- fixed header
-  root:add(fld_func, buffer(0, 1))
-  local cntl_tree = root:add(fld_cntl, buffer(1, 1))
-  cntl_tree:add(fld_cntl_resrvedbits, buffer(1, 1))
-  cntl_tree:add(fld_cntl_hasorigvmac, buffer(1, 1))
-  cntl_tree:add(fld_cntl_hasdestvmac, buffer(1, 1))
-  cntl_tree:add(fld_cntl_hasdestopts, buffer(1, 1))
-  cntl_tree:add(fld_cntl_hasdataopts, buffer(1, 1))
-  root:add(fld_msgid, buffer(2, 2))
+  root:add(fields.func, buffer(0, 1))
+  local cntl_tree = root:add(fields.cntl, buffer(1, 1))
+  cntl_tree:add(fields.cntl_resrvedbits, buffer(1, 1))
+  cntl_tree:add(fields.cntl_hasorigvmac, buffer(1, 1))
+  cntl_tree:add(fields.cntl_hasdestvmac, buffer(1, 1))
+  cntl_tree:add(fields.cntl_hasdestopts, buffer(1, 1))
+  cntl_tree:add(fields.cntl_hasdataopts, buffer(1, 1))
+  root:add(fields.msgid, buffer(2, 2))
 
   -- variable header
   local offset = 4
   local cntl_flags = buffer(1, 1):uint()
   if bit.band(cntl_flags, 8) == 8 then
-    root:add(fld_origvmac, buffer(offset, 6))
+    root:add(fields.origvmac, buffer(offset, 6))
     offset = offset + 6
   end
   if bit.band(cntl_flags, 4) == 4 then
-    root:add(fld_destvmac, buffer(offset, 6))
+    root:add(fields.destvmac, buffer(offset, 6))
     offset = offset + 6
   end
 
@@ -213,7 +203,7 @@ function bsc_protocol.dissector(buffer, pinfo, tree)
   end
 
   -- handle link layer messages
-  local pldtree = root:add(fld_payload, buffer:range(offset))
+  local pldtree = root:add(fields.payload, buffer:range(offset))
   if     bvlc_fn == 0 then
     pinfo.cols.info = dissect_bvlc_result(payload, pldtree)
   elseif bvlc_fn == 2 then
