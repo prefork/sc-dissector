@@ -1,8 +1,21 @@
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- BACnet Secure Connect Dissector for Wireshark (v0.1.0)
+-- Copyright (C) 2020 Nate Benes
 --
--- BACnet Secure Connect Protocol Dissector for Wireshark
+-- This program is free software; you can redistribute it and/or modify
+-- it under the terms of the GNU General Public License as published by
+-- the Free Software Foundation; either version 2 of the License, or
+-- (at your option) any later version.
 --
--------------------------------------------------------------------------------
+-- This program is distributed in the hope that it will be useful,
+-- but WITHOUT ANY WARRANTY; without even the implied warranty of
+-- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-- GNU General Public License for more details.
+--
+-- You should have received a copy of the GNU General Public License along
+-- with this program; if not, write to the Free Software Foundation, Inc.,
+-- 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+--------------------------------------------------------------------------------
 
 -- create a new protocol object for BACnet Secure Connect
 bsc_protocol = Proto("bsc", "BACnet Secure Connect Protocol")
@@ -36,10 +49,16 @@ local header_option_types = {
   [16] = "Reserved", [17] = "Reserved", [18] = "Reserved", [19] = "Reserved",
   [20] = "Reserved", [21] = "Reserved", [22] = "Reserved", [23] = "Reserved",
   [24] = "Reserved", [25] = "Reserved", [26] = "Reserved", [27] = "Reserved",
-  [28] = "Reserved", [29] = "Reserved", [30] = "Reserved", [31] = "Proprietary-Message",
+  [28] = "Reserved", [29] = "Reserved", [30] = "Reserved", [31] = "Proprietary Option",
 }
 
 local ack_or_nak = {[0] = "ACK", [1] = "NAK"}
+
+local conn_status = {
+  [0] = "No Connection",
+  [1] = "Connected to Primary",
+  [2] = "Connected to Secondary"
+}
 
 --
 -- field configuration
@@ -52,24 +71,22 @@ fields.cntl_hasorigvmac = ProtoField.bool("bsc.control.has_orig_vmac", "Originat
 fields.cntl_hasdestvmac = ProtoField.bool("bsc.control.has_dest_vmac", "Destination Virtual Address", 8, present_or_absent, 4)
 fields.cntl_hasdestopts = ProtoField.bool("bsc.control.has_dest_opts", "Destination Options", 8, present_or_absent, 2)
 fields.cntl_hasdataopts = ProtoField.bool("bsc.control.has_data_opts", "Data Options", 8, present_or_absent, 1)
-fields.msgid            = ProtoField.uint16("bsc.msg_id", "Message ID", base.HEX)
-fields.origvmac         = ProtoField.ether("bsc.orig_vmac", "Originating Virtual Address")
-fields.destvmac         = ProtoField.ether("bsc.dest_vmac", "Destination Virtual Address")
-fields.destopts         = ProtoField.none("bsc.destopts", "Destination Options")
-fields.dataopts         = ProtoField.none("bsc.dataopts", "Data Options")
-fields.option_marker    = ProtoField.none("bsc.option.marker", "Header Flags")
+fields.msgid            = ProtoField.uint16("bsc.message_id", "Message ID", base.HEX)
+fields.origvmac         = ProtoField.ether("bsc.originating_vmac", "Originating Virtual Address")
+fields.destvmac         = ProtoField.ether("bsc.destination_vmac", "Destination Virtual Address")
+fields.dest_option      = ProtoField.none("bsc.destination_option", "Destination Option")
+fields.data_option      = ProtoField.none("bsc.data_option", "Data Option")
+fields.option_marker    = ProtoField.uint8("bsc.option.marker", "Header Marker", base.HEX)
 fields.option_hasmore   = ProtoField.bool("bsc.option.has_more", "More Options", 8, yes_or_no, 128)
 fields.option_mustund   = ProtoField.bool("bsc.option.must_understand", "Must Understand", 8, yes_or_no, 64)
 fields.option_hasdata   = ProtoField.bool("bsc.option.has_data", "Header Data", 8, present_or_absent, 32)
 fields.option_type      = ProtoField.uint8("bsc.option.type", "Type", base.HEX, header_option_types, 31)
 fields.option_length    = ProtoField.uint8("bsc.option.length", "Length", base.DEC)
 fields.option_data      = ProtoField.none("bsc.option.data", "Data")
-fields.option_secure    = ProtoField.none("bsc.option.secure", "Secure Path")
-fields.option_prop      = ProtoField.none("bsc.option.prop", "Proprietary Option")
-fields.option_prop_vid  = ProtoField.uint16("bsc.option.prop.vendor_id", "Function", base.DEC)
-fields.option_prop_type = ProtoField.uint8("bsc.option.prop.type", "Type", base.DEC)
-fields.option_prop_data = ProtoField.none("bsc.option.prop.data", "Data")
-fields.payload          = ProtoField.bytes("bsc.payload", "Payload")
+fields.option_prop_vid  = ProtoField.uint16("bsc.option.vendor_id", "Vendor ID", base.DEC)
+fields.option_prop_type = ProtoField.uint8("bsc.option.proprietary_type", "Type", base.DEC)
+fields.option_prop_data = ProtoField.none("bsc.option.proprietary_data", "Data")
+fields.payload          = ProtoField.none("bsc.payload", "Payload")
 
 -- BVLC-result fields
 fields.bvlcres_func     = ProtoField.uint8("bsc.bvlc_result.function", "Function", base.HEX, bvlc_functions)
@@ -79,26 +96,102 @@ fields.bvlcres_errcls   = ProtoField.uint16("bsc.bvlc_result.error_class", "Erro
 fields.bvlcres_errcde   = ProtoField.uint16("bsc.bvlc_result.error_code", "Error Code")
 fields.bvlcres_errdet   = ProtoField.string("bsc.bvlc_result.error_details", "Error Details", base.UNICODE)
 
+-- address resolution ACK fields
+fields.addrres_uri      = ProtoField.string("bsc.address_resolution.uri", "WebSocket URI", base.UNICODE)
+
+-- advertisement fields
+fields.advrt_connstat   = ProtoField.uint8("bsc.advertisement.conn_status", "Hub Connection Status", base.HEX, conn_status)
+fields.advrt_acceptdc   = ProtoField.uint8("bsc.advertisement.accepts_direct_connect", "Accepts Direct Connects", base.HEX, yes_or_no)
+fields.advrt_minbvlc    = ProtoField.uint16("bsc.advertisement.minimum_bvlc_len", "Minimum BVLC Length", base.DEC)
+fields.advrt_minnpdu    = ProtoField.uint16("bsc.advertisement.minimum_npdu_len", "Minimum NPDU Length", base.DEC)
+
 -- connect request fields
-fields.connreq_vmac     = ProtoField.ether("bsc.conn_req.vmac", "VMAC Address")
-fields.connreq_uuid     = ProtoField.guid("bsc.conn_req.uuid", "UUID")
-fields.connreq_bvlclen  = ProtoField.uint16("bsc.conn_req.bvlc_len", "Maximum BVLC Length Accepted")
-fields.connreq_npdulen  = ProtoField.uint16("bsc.conn_req.npdu_len", "Maximum NPDU Length Accepted")
+fields.connreq_vmac     = ProtoField.ether("bsc.connect_request.vmac", "VMAC Address")
+fields.connreq_uuid     = ProtoField.guid("bsc.connect_request.uuid", "Device UUID")
+fields.connreq_bvlclen  = ProtoField.uint16("bsc.connect_request.bvlc_len", "Maximum BVLC Length Accepted")
+fields.connreq_npdulen  = ProtoField.uint16("bsc.connect_request.npdu_len", "Maximum NPDU Length Accepted")
 
 -- connect accept fields
-fields.connack_vmac     = ProtoField.ether("bsc.conn_ack.vmac", "VMAC Address")
-fields.connack_uuid     = ProtoField.guid("bsc.conn_ack.uuid", "UUID")
-fields.connack_bvlclen  = ProtoField.uint16("bsc.conn_ack.bvlc_len", "Maximum BVLC Length Accepted")
-fields.connack_npdulen  = ProtoField.uint16("bsc.conn_ack.npdu_len", "Maximum NPDU Length Accepted")
+fields.connack_vmac     = ProtoField.ether("bsc.connect_accept.vmac", "VMAC Address")
+fields.connack_uuid     = ProtoField.guid("bsc.connect_accept.uuid", "Device UUID")
+fields.connack_bvlclen  = ProtoField.uint16("bsc.connect_accept.bvlc_len", "Maximum BVLC Length Accepted")
+fields.connack_npdulen  = ProtoField.uint16("bsc.connect_accept.npdu_len", "Maximum NPDU Length Accepted")
+
+-- proprietary message fields
+fields.proprietary_vid  = ProtoField.uint16("bsc.proprietary_message.vendor_id", "Vendor ID", base.DEC)
+fields.proprietary_func = ProtoField.uint8("bsc.proprietary_message.function", "Function", base.DEC)
+fields.proprietary_data = ProtoField.bytes("bsc.proprietary_message.data", "Proprietary Data")
 
 -- resolve the NPDU dissector
 bacnet_protocol = Dissector.get("bacnet")
 
 --
+-- header dissectors
+--
+
+local function dissect_header_options(buffer, root, field)
+  local offset = 0
+  while true do
+    -- create a tree entry to glue this option together
+    local tree = root:add(field)
+    local hflags = buffer(offset, 1):uint()
+    local htype = bit.band(hflags, 31)
+    local hname = header_option_types[htype]
+    tree:append_text(" (" .. hname .. ")")
+
+    -- header marker is always present
+    local marker = tree:add(fields.option_marker, buffer(offset, 1))
+    marker:add(fields.option_hasmore, buffer(offset, 1))
+    marker:add(fields.option_mustund, buffer(offset, 1))
+    marker:add(fields.option_hasdata, buffer(offset, 1))
+    marker:add(fields.option_type, buffer(offset, 1))
+
+    -- length and data fields are conditional
+    if bit.band(hflags, 32) == 32 then
+      local length = buffer(offset + 1, 2):uint()
+      tree:add(fields.option_length, buffer(offset + 1, 2))
+      local data = tree:add(fields.option_data, buffer(offset + 2, length))
+      if htype == 31 then
+        -- proprietary option
+        data:add(fields.option_prop_vid, buffer(offset + 3, 2))
+        data:add(fields.option_prop_type, buffer(offset + 4, 1))
+        data:add(fields.option_prop_data, buffer(offset + 5, length - 3))
+      end
+      offset = offset + 2 + length
+    end
+    offset = offset + 1
+
+    -- bail out if no more header options
+    if bit.band(hflags, 128) ~= 128 then
+      break
+    end
+  end
+  return offset
+end
+
+--
 -- payload dissectors
 --
 
-local function dissect_bvlc_result(payload, tree)
+local function format_vmac(buffer)
+  return string.format(
+    "%02x:%02x:%02x:%02x:%02x:%02x",
+    buffer(0, 1):uint(), buffer(1, 1):uint(), buffer(2, 1):uint(),
+    buffer(3, 1):uint(), buffer(4, 1):uint(), buffer(5, 1):uint()
+  )
+end
+
+local function format_uuid(buffer)
+  -- Wireshark's Tvb structure doesn't support 6-byte uints
+  return string.format("%08x-%04x-%04x-%04x-%04x%02x",
+    buffer(0, 4):uint(), buffer(4, 2):uint(), buffer(6, 2):uint(),
+    buffer(8, 2):uint(), buffer(10, 4):uint(), buffer(14, 2):uint()
+  )
+end
+
+local function dissect_bvlc_result(payload, root)
+  local tree = root:add(fields.payload, payload)
+  tree:append_text(" (BVLC-Result)")
   tree:add(fields.bvlcres_func, payload(0, 1))
   tree:add(fields.bvlcres_code, payload(1, 1))
   if payload:len() > 2 then
@@ -107,57 +200,93 @@ local function dissect_bvlc_result(payload, tree)
     tree:add(fields.bvlcres_errcde, payload(5, 2))
     tree:add(fields.bvlcres_errdet, payload(7))
   end
-  tree:append_text(" (BVLC-Result)")
-  return "BVLC-Result"
+  local fn_str = bvlc_functions[payload(0, 1):uint()]
+  return string.format("BVLC-Result (fn=%s,code=%d)", fn_str, payload(1, 1):uint())
 end
 
-local function dissect_address_resolution(payload, tree)
+local function dissect_address_resolution(payload, root)
+  return "Address-Resolution"
 end
 
-local function dissect_address_resolution_ack(payload, tree)
+local function dissect_address_resolution_ack(payload, root)
+  local tree = root:add(fields.payload, payload)
+  tree:append_text(" (Address-Resolution-ACK)")
+  local mark = 0
+  for idx = 0, payload:len() do
+    if payload(idx, 1):uint() == 0x20 then
+      tree:add(fields.addrres_uri, payload(mark, idx - mark))
+      mark = idx
+    end
+  end
+  if mark > 0 then
+    local len = payload:len()
+    tree:add(fields.addrres_uri, payload(mark, len - mark))
+  end
+  return "Address-Resolution-ACK"
 end
 
-local function dissect_advertisement(payload, tree)
+local function dissect_advertisement(payload, root)
+  local tree = root:add(fields.payload, payload)
+  tree:append_text(" (Advertisement)")
+  tree:add(fields.advrt_connstat, payload(0, 1))
+  tree:add(fields.advrt_acceptdc, payload(1, 1))
+  tree:add(fields.advrt_minbvlc, payload(2, 2))
+  tree:add(fields.advrt_minnpdu, payload(4, 2))
+  return "Advertisement"
 end
 
-local function dissect_advertisement_solicitation(payload, tree)
+local function dissect_advertisement_solicitation(payload, root)
+  return "Advertisement-Solicitation"
 end
 
-local function dissect_connect_request(payload, tree)
+local function dissect_connect_request(payload, root)
+  local tree = root:add(fields.payload, payload)
+  tree:append_text(" (Connect-Request)")
   tree:add(fields.connreq_vmac, payload(0, 6))
   tree:add(fields.connreq_uuid, payload(6, 16))
   tree:add(fields.connreq_bvlclen, payload(22, 2))
   tree:add(fields.connreq_npdulen, payload(24, 2))
-  tree:append_text(" (Connect-Request)")
-  return "Connect-Request" -- TODO(nb): show vmac and uuid here
+  local vmac = format_vmac(payload(0, 6))
+  local uuid = format_uuid(payload(6, 16))
+  return string.format("Connect-Request (vmac=%s,uuid=%s)", vmac, uuid)
 end
 
-local function dissect_connect_accept(payload, tree)
+local function dissect_connect_accept(payload, root)
+  local tree = root:add(fields.payload, payload)
+  tree:append_text(" (Connect-Accept)")
   tree:add(fields.connack_vmac, payload(0, 6))
   tree:add(fields.connack_uuid, payload(6, 16))
   tree:add(fields.connack_bvlclen, payload(22, 2))
   tree:add(fields.connack_npdulen, payload(24, 2))
-  tree:append_text(" (Connect-Accept)")
-  return "Connect-Accept" -- TODO(nb): show vmac and uuid here
+  local vmac = format_vmac(payload(0, 6))
+  local uuid = format_uuid(payload(6, 16))
+  return string.format("Connect-Accept (vmac=%s,uuid=%s)", vmac, uuid)
 end
 
-local function dissect_disconnect_request(payload, tree)
+local function dissect_disconnect_request(payload, root)
+  return "Disconnect-Request"
 end
 
-local function dissect_disconnect_accept(payload, tree)
+local function dissect_disconnect_accept(payload, root)
+  return "Disconnect-ACK"
 end
 
-local function dissect_heartbeat_request(payload, tree)
-  tree:append_text(" (Heartbeat-Request)")
+local function dissect_heartbeat_request(payload, root)
   return "Heartbeat-Request"
 end
 
-local function dissect_heartbeat_ack(payload, tree)
-  tree:append_text(" (Heartbeat-ACK)")
+local function dissect_heartbeat_ack(payload, root)
   return "Heartbeat-ACK"
 end
 
 local function dissect_proprietary_message(payload, root)
+  local tree = root:add(fields.payload, payload)
+  tree:append_text(" (Proprietary-Message)")
+  tree:add(fields.proprietary_vid, payload(0, 2))
+  tree:add(fields.proprietary_func, payload(2, 1))
+  tree:add(fields.proprietary_data, payload(3))
+  return string.format("Proprietary-Message (vendor_id=%d,function=%d)",
+    payload(0, 2):uint(), payload(2, 1):uint())
 end
 
 --
@@ -193,41 +322,47 @@ function bsc_protocol.dissector(buffer, pinfo, tree)
     root:add(fields.destvmac, buffer(offset, 6))
     offset = offset + 6
   end
+  if bit.band(cntl_flags, 2) == 2 then
+    offset = offset + dissect_header_options(buffer, root, fields.dest_option)
+  end
+  if bit.band(cntl_flags, 1) == 1 then
+    offset = offset + dissect_header_options(buffer, root, fields.data_option)
+  end
 
   -- setup payload
   local bvlc_fn = buffer(0, 1):uint()
-  local payload = buffer:range(offset, length - offset):tvb()
+  local payload = buffer:range(offset)
   if bvlc_fn == 1 then
-    bacnet_protocol:call(payload, pinfo, tree)
+    -- delegate to the built-in NPDU dissector
+    bacnet_protocol:call(payload:tvb(), pinfo, tree)
     return
   end
 
   -- handle link layer messages
-  local pldtree = root:add(fields.payload, buffer:range(offset))
   if     bvlc_fn == 0 then
-    pinfo.cols.info = dissect_bvlc_result(payload, pldtree)
+    pinfo.cols.info = dissect_bvlc_result(payload, root)
   elseif bvlc_fn == 2 then
-    pinfo.cols.info = dissect_address_resolution(payload, pldtree)
+    pinfo.cols.info = dissect_address_resolution(payload, root)
   elseif bvlc_fn == 3 then
-    pinfo.cols.info = dissect_address_resolution_ack(payload, pldtree)
+    pinfo.cols.info = dissect_address_resolution_ack(payload, root)
   elseif bvlc_fn == 4 then
-    pinfo.cols.info = dissect_advertisement(payload, pldtree)
+    pinfo.cols.info = dissect_advertisement(payload, root)
   elseif bvlc_fn == 5 then
-    pinfo.cols.info = dissect_advertisement_solicitation(payload, pldtree)
+    pinfo.cols.info = dissect_advertisement_solicitation(payload, root)
   elseif bvlc_fn == 6 then
-    pinfo.cols.info = dissect_connect_request(payload, pldtree)
+    pinfo.cols.info = dissect_connect_request(payload, root)
   elseif bvlc_fn == 7 then
-    pinfo.cols.info = dissect_connect_accept(payload, pldtree)
+    pinfo.cols.info = dissect_connect_accept(payload, root)
   elseif bvlc_fn == 8 then
-    pinfo.cols.info = dissect_disconnect_request(payload, pldtree)
+    pinfo.cols.info = dissect_disconnect_request(payload, root)
   elseif bvlc_fn == 9 then
-    pinfo.cols.info = dissect_disconnect_accept(payload, pldtree)
+    pinfo.cols.info = dissect_disconnect_accept(payload, root)
   elseif bvlc_fn == 10 then
-    pinfo.cols.info = dissect_heartbeat_request(payload, pldtree)
+    pinfo.cols.info = dissect_heartbeat_request(payload, root)
   elseif bvlc_fn == 11 then
-    pinfo.cols.info = dissect_heartbeat_ack(payload, pldtree)
+    pinfo.cols.info = dissect_heartbeat_ack(payload, root)
   elseif bvlc_fn == 12 then
-    pinfo.cols.info = dissect_proprietary_message(payload, pldtree)
+    pinfo.cols.info = dissect_proprietary_message(payload, root)
   end
 end
 
