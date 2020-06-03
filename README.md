@@ -6,7 +6,7 @@ With this plugin, you can view and analyze [BACnet Secure Connect (BACnet/SC)](h
 
 ## Installation
 
-Ensure that you have a recent (>= 3.0.0) version of Wireshark installed.  Then, add the included `bsc.lua` file to your Wireshark [Plugin Directory](https://www.wireshark.org/docs/wsug_html_chunked/ChPluginFolders.html).  That's it.
+Ensure that you have a recent (>= 3.0.0) version of Wireshark installed.  Then, add the included [`bsc.lua`](https://github.com/prefork/sc-dissector/archive/v0.1.0.zip) file to your Wireshark [Plugin Directory](https://www.wireshark.org/docs/wsug_html_chunked/ChPluginFolders.html).  That's it.
 
 ### How do I find my plugin directory?
 
