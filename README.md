@@ -102,7 +102,7 @@ With this plugin, you can filter messages based on over forty different fields. 
 |-------------------------------|------------|
 | All BACnet messages           | `bsc`      |
 | Link layer broadcast messages | `bsc.destination_vmac == ff:ff:ff:ff:ff:ff` |
-| Connect requests from `96742512-60b0-4e50-bd0e-accaadcf164e` | `bsc.connect_req.uuid == 96742512-60b0-4e50-bd0e-accaadcf164e` |
+| Connect requests from `96742512-60b0-4e50-bd0e-accaadcf164e` | `bsc.connect_request.uuid == 96742512-60b0-4e50-bd0e-accaadcf164e` |
 | Nodes connected to a secondary hub | `bsc.advertisement.conn_status == 2` |
 | Proprietary header options from vendor `510` | `bsc.option.vendor_id == 510` |
 
