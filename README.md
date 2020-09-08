@@ -50,7 +50,7 @@ Fortunately, Wireshark has support for [decrypting TLS traffic](https://wiki.wir
 
 If you're a software developer looking to add support for key log files to your application, here are a few links that might get you started:
  - The original [SSLKEYLOGFILE](https://developer.mozilla.org/en-US/docs/NSS_Key_Log_Format) from NSS
- - An [Agent](http://jsslkeylog.sourceforge.net/) for Java programs (you'll need to build from source for TLS 1.3 support)
+ - An [Agent](https://github.com/jsslkeylog/jsslkeylog/) for Java programs
  - The relevant [function call](https://www.openssl.org/docs/man1.1.1/man3/SSL_CTX_get_keylog_callback.html) for OpenSSL
  - The relevant [property](https://github.com/python/cpython/commit/c7f7069e77c58e83b847c0bfe4d5aadf6add2e68) in recent versions of Python
 
