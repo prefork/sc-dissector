@@ -41,6 +41,10 @@ local yes_or_no = {
   "yes", "no"
 }
 
+local accept_direct_connections = {
+    [0] = "no", [1] = "yes"
+}
+
 local header_option_types = {
   [0] = "Reserved", [1] = "Secure Path", [2] = "Reserved", [3] = "Reserved",
   [4] = "Reserved", [5] = "Reserved", [6] = "Reserved", [7] = "Reserved",
@@ -101,21 +105,21 @@ fields.addrres_uri      = ProtoField.string("bsc.address_resolution.uri", "WebSo
 
 -- advertisement fields
 fields.advrt_connstat   = ProtoField.uint8("bsc.advertisement.conn_status", "Hub Connection Status", base.HEX, conn_status)
-fields.advrt_acceptdc   = ProtoField.uint8("bsc.advertisement.accepts_direct_connect", "Accepts Direct Connects", base.HEX, yes_or_no)
-fields.advrt_minbvlc    = ProtoField.uint16("bsc.advertisement.minimum_bvlc_len", "Minimum BVLC Length", base.DEC)
-fields.advrt_minnpdu    = ProtoField.uint16("bsc.advertisement.minimum_npdu_len", "Minimum NPDU Length", base.DEC)
+fields.advrt_acceptdc   = ProtoField.uint8("bsc.advertisement.accepts_direct_connects", "Accepts Direct Connects", base.HEX, accept_direct_connections)
+fields.advrt_maxbvlclen = ProtoField.uint16("bsc.advertisement.maximum_bvlc_len", "Maximum BVLC Length", base.DEC)
+fields.advrt_maxnpdulen = ProtoField.uint16("bsc.advertisement.maximum_npdu_len", "Maximum NPDU Length", base.DEC)
 
 -- connect request fields
-fields.connreq_vmac     = ProtoField.ether("bsc.connect_request.vmac", "VMAC Address")
-fields.connreq_uuid     = ProtoField.guid("bsc.connect_request.uuid", "Device UUID")
-fields.connreq_bvlclen  = ProtoField.uint16("bsc.connect_request.bvlc_len", "Maximum BVLC Length Accepted")
-fields.connreq_npdulen  = ProtoField.uint16("bsc.connect_request.npdu_len", "Maximum NPDU Length Accepted")
+fields.connreq_vmac       = ProtoField.ether("bsc.connect_request.vmac", "VMAC Address")
+fields.connreq_uuid       = ProtoField.guid("bsc.connect_request.uuid", "Device UUID")
+fields.connreq_maxbvlclen = ProtoField.uint16("bsc.connect_request.maximum_bvlc_len", "Maximum BVLC Length")
+fields.connreq_maxnpdulen = ProtoField.uint16("bsc.connect_request.maximum_npdu_len", "Maximum NPDU Length")
 
 -- connect accept fields
-fields.connack_vmac     = ProtoField.ether("bsc.connect_accept.vmac", "VMAC Address")
-fields.connack_uuid     = ProtoField.guid("bsc.connect_accept.uuid", "Device UUID")
-fields.connack_bvlclen  = ProtoField.uint16("bsc.connect_accept.bvlc_len", "Maximum BVLC Length Accepted")
-fields.connack_npdulen  = ProtoField.uint16("bsc.connect_accept.npdu_len", "Maximum NPDU Length Accepted")
+fields.connack_vmac       = ProtoField.ether("bsc.connect_accept.vmac", "VMAC Address")
+fields.connack_uuid       = ProtoField.guid("bsc.connect_accept.uuid", "Device UUID")
+fields.connack_maxbvlclen = ProtoField.uint16("bsc.connect_accept.maximum_bvlc_len", "Maximum BVLC Length")
+fields.connack_maxnpdulen = ProtoField.uint16("bsc.connect_accept.maximum_npdu_len", "Maximum NPDU Length")
 
 -- proprietary message fields
 fields.proprietary_vid  = ProtoField.uint16("bsc.proprietary_message.vendor_id", "Vendor ID", base.DEC)
@@ -230,9 +234,9 @@ local function dissect_advertisement(payload, root)
   tree:append_text(" (Advertisement)")
   tree:add(fields.advrt_connstat, payload(0, 1))
   tree:add(fields.advrt_acceptdc, payload(1, 1))
-  tree:add(fields.advrt_minbvlc, payload(2, 2))
-  tree:add(fields.advrt_minnpdu, payload(4, 2))
-  return "Advertisement"
+  tree:add(fields.advrt_maxbvlclen, payload(2, 2))
+  tree:add(fields.advrt_maxnpdulen, payload(4, 2))
+  return string.format("Advertisement (connstat=%d,acceptdc:%d)", payload(0, 1):uint(), payload(1, 1):uint())
 end
 
 local function dissect_advertisement_solicitation(payload, root)
@@ -244,8 +248,8 @@ local function dissect_connect_request(payload, root)
   tree:append_text(" (Connect-Request)")
   tree:add(fields.connreq_vmac, payload(0, 6))
   tree:add(fields.connreq_uuid, payload(6, 16))
-  tree:add(fields.connreq_bvlclen, payload(22, 2))
-  tree:add(fields.connreq_npdulen, payload(24, 2))
+  tree:add(fields.connreq_maxbvlclen, payload(22, 2))
+  tree:add(fields.connreq_maxnpdulen, payload(24, 2))
   local vmac = format_vmac(payload(0, 6))
   local uuid = format_uuid(payload(6, 16))
   return string.format("Connect-Request (vmac=%s,uuid=%s)", vmac, uuid)
@@ -256,8 +260,8 @@ local function dissect_connect_accept(payload, root)
   tree:append_text(" (Connect-Accept)")
   tree:add(fields.connack_vmac, payload(0, 6))
   tree:add(fields.connack_uuid, payload(6, 16))
-  tree:add(fields.connack_bvlclen, payload(22, 2))
-  tree:add(fields.connack_npdulen, payload(24, 2))
+  tree:add(fields.connack_maxbvlclen, payload(22, 2))
+  tree:add(fields.connack_maxnpdulen, payload(24, 2))
   local vmac = format_vmac(payload(0, 6))
   local uuid = format_uuid(payload(6, 16))
   return string.format("Connect-Accept (vmac=%s,uuid=%s)", vmac, uuid)
