@@ -158,9 +158,9 @@ With this plugin, you can filter messages based on over forty different fields. 
 | Field                        | Selector                                   | Data Type |
 |------------------------------|--------------------------------------------|-----------|
 | Hub Connection Status        | `bsc.advertisement.conn_status`            | `uint8`   |
-| Accepts Direct Connects      | `bsc.advertisement.accepts_direct_connect` | `uint8`   |
-| Minimum BVLC Length          | `bsc.advertisement.minimum_bvlc_len`       | `uint16`  |
-| Minimum NPDU Length          | `bsc.advertisement.minimum_npdu_len`       | `uint16`  |
+| Accepts Direct Connects      | `bsc.advertisement.accepts_direct_connects`| `uint8`   |
+| Maximum BVLC Length          | `bsc.advertisement.maximum_bvlc_len`       | `uint16`  |
+| Maximum NPDU Length          | `bsc.advertisement.maximum_npdu_len`       | `uint16`  |
 
 #### Connect-Request messages
 
@@ -168,8 +168,8 @@ With this plugin, you can filter messages based on over forty different fields. 
 |------------------------------|--------------------------------------------|-----------|
 | VMAC Address                 | `bsc.connect_request.vmac`                 | `ether`   |
 | Device UUID                  | `bsc.connect_request.uuid`                 | `guid`    |
-| Maximum BVLC Length Accepted | `bsc.connect_request.bvlc_len`             | `uint16`  |
-| Maximum NPDU Length Accepted | `bsc.connect_request.npdu_len`             | `uint16`  |
+| Maximum BVLC Length          | `bsc.connect_request.maximum_bvlc_len`     | `uint16`  |
+| Maximum NPDU Length          | `bsc.connect_request.maximum_npdu_len`     | `uint16`  |
 
 #### Connect-Accept messages
 
@@ -177,8 +177,8 @@ With this plugin, you can filter messages based on over forty different fields. 
 |------------------------------|--------------------------------------------|-----------|
 | VMAC Address                 | `bsc.connect_accept.vmac`                  | `ether`   |
 | Device UUID                  | `bsc.connect_accept.uuid`                  | `guid`    |
-| Maximum BVLC Length Accepted | `bsc.connect_accept.bvlc_len`              | `uint16`  |
-| Maximum NPDU Length Accepted | `bsc.connect_accept.npdu_len`              | `uint16`  |
+| Maximum BVLC Length          | `bsc.connect_accept.maximum_bvlc_len`      | `uint16`  |
+| Maximum NPDU Length          | `bsc.connect_accept.maximum_npdu_len`      | `uint16`  |
 
 #### Proprietary Messages
 
