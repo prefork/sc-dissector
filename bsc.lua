@@ -202,6 +202,9 @@ local function dissect_bvlc_result(payload, root)
     tree:add(fields.bvlcres_errmrk, payload(2, 1))
     tree:add(fields.bvlcres_errcls, payload(3, 2))
     tree:add(fields.bvlcres_errcde, payload(5, 2))
+  end
+  -- AB.2.4.1 "Can be an empty string using no octets."
+  if payload:len() > 7 then
     tree:add(fields.bvlcres_errdet, payload(7))
   end
   local fn_str = bvlc_functions[payload(0, 1):uint()]
