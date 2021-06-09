@@ -330,10 +330,10 @@ function bsc_protocol.dissector(buffer, pinfo, tree)
     offset = offset + 6
   end
   if bit.band(cntl_flags, 2) == 2 then
-    offset = offset + dissect_header_options(buffer, root, fields.dest_option)
+    offset = offset + dissect_header_options(buffer(offset), root, fields.dest_option)
   end
   if bit.band(cntl_flags, 1) == 1 then
-    offset = offset + dissect_header_options(buffer, root, fields.data_option)
+    offset = offset + dissect_header_options(buffer(offset), root, fields.data_option)
   end
 
   -- setup payload
