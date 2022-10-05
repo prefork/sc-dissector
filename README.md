@@ -1,3 +1,5 @@
+(:trumpet: **Note:** This project has been archived following [the release](https://www.wireshark.org/news/20221004.html) of Wireshark 4.0, which includes native support for Secure Connect. :trumpet:)
+
 # BACnet Secure Connect Dissector for Wireshark
 
 With this plugin, you can view and analyze [BACnet Secure Connect (BACnet/SC)](http://www.bacnet.org/Addenda/Add-135-2016bj.pdf) traffic from within [Wireshark](https://www.wireshark.org/).  This plugin has been tested with node-to-hub communication and node-to-node (direct connect) communication.
